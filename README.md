@@ -1,5 +1,5 @@
 # RubyCryptoAid
-Support for solving basic cryptography exercises in Ruby
+Support for solving basic cryptography exercises in Ruby. Also contains some functionality for statistics.
 
 ## Examples
 
@@ -30,4 +30,26 @@ irb(main):008:0> c.value
 => "the kid don't play"
 irb(main):009:0> c.to_hex
 => "746865206b696420646f6e277420706c6179"
+```
+
+### Cryptopals set 1, challenge 3
+[Link to exercise](https://cryptopals.com/sets/1/challenges/3)
+
+```ruby
+a = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"
+
+require 'scoring'
+require 'xor'
+
+raw_a = a.hex_to_raw
+key = xor_key_brute(raw_a) do |raw_string|
+  char_freq(raw_string.value)
+end
+
+# Key: X
+# Flag: Cooking MC's like a pound of bacon
+
+puts "Key: #{key.value}"
+puts
+puts "Flag: #{(raw_a ^ key).value}"
 ```
