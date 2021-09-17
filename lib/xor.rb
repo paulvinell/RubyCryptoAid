@@ -14,6 +14,63 @@ def hammingDistance s, t
   return dist + (sb.length - tb.length).abs
 end
 
+# Tries to find the key size based on hamming distance between blocks.
+# Input: raw string: the string to XOR against
+# Input: [integer, integer]: key_length: the key length search interval (inclusive)
+# Input: integer: samples: the number of samples to take. This guides the keysize guesses.
+# Input: integer: results: the number of keysizes to return.
+# Output: keysize: the assumed key size
+def xor_keysize(raw_string, key_length, samples: 1, results: 3)
+  results = [results, key_length.max - key_length.min].min
+  keysizes = []
+
+  for length in key_length[0]..key_length[1]
+    current_score = 0
+
+    sample1 = raw_string.value[0, length]
+    samples.times do |sample_index|
+      sample2 = raw_string.value[(sample_index+1)*length, length]
+
+      current_score += sample1.to_raw.hamming_dist(sample2.to_raw)
+
+      sample1 = sample2
+    end
+
+    current_score /= length.to_f
+    current_score /= samples.to_f
+
+    keysizes.append([length, current_score])
+  end
+
+  keysizes.sort_by { |elem| elem[1] }[0, results]
+end
+
+# Bruteforces the key based on some user defined metric.
+# Uses divide and conquer to exploit knowing the key length.
+# Input: raw string: the string to XOR against
+# Input: integer: key_length: the key length
+# Input (optional): [integer, integer]: key_value: the key value search interval (inclusive) (individual characters)
+# Input (optional), yield: fn -> number: yields a raw_string and expects to be returned a score,
+#                                        for instance, a measure of character frequency. The score is maximized.
+# Output: raw string: the found key
+def xor_key_brute_daq(raw_string, key_length, key_value: [0, 255])
+  key = RawString.new("")
+
+  key_length.times do |key_index|
+    (key_index..raw_string.value.length).step(key_length).map do |data_index|
+      raw_string.value[data_index]
+    end.join.to_raw => data
+
+    key_fragment = xor_key_brute(data, key_length: [1, 1], key_value: key_value) do |rs|
+      yield(rs)
+    end
+    key = key.append(key_fragment)
+  end
+
+  key
+end
+
+# Bruteforces the key based on some user defined metric.
 # Input: raw string: the string to XOR against
 # Input (optional): [integer, integer]: key_length: the key length search interval (inclusive)
 # Input (optional): [integer, integer]: key_value: the key value search interval (inclusive) (individual characters)
@@ -47,7 +104,8 @@ end
 
 # Cycles through all possible keys.
 # Can be thought of as the "key_index":ed number in base "key value's interval size"
-# with a modulo of "key value's interval size"^length
+# with a modulo of "key value's interval size"^length.
+# In total there are "key value's interval size"^length different keys.
 # E.g.
 # get_key(0, 3, [0, 1]) => [0, 0, 0]
 # get_key(1, 3, [0, 1]) => [1, 0, 0]

@@ -1,21 +1,22 @@
+# Custom AES implementation
+
 class AES
-  
   def initialize key
     @key = key
     @rk = KeySchedule.new(@key).expand # round key
   end
-  
+
   # specifically AES 128 bits
   def encrypt x
     res = add_round_key(@rk, 0, x)
-    
+
     (1..9).each do |i|
       res = sub_bytes(res)
       res = shift_rows(res)
       res = mix_columns(res)
       res = add_round_key(@rk, i, res)
     end
-    
+
     res = sub_bytes(res)
     res = shift_rows(res)
     res = add_round_key(@rk, 10, res)
@@ -24,30 +25,30 @@ end
 
 # Turns key into separate round keys
 class KeySchedule
-  
+
   def initialize key
     @key = key
   end
-  
+
   def expand
     res = @key[0, 16] # use the first 16 bytes of the key
     1.step do |i| # i is the rcon round
       break if res.length == 176 # don't expand more than 176 bytes
-      
+
       t = res[-4, 4] # use the last 4 bytes of the current expansion
       t = t[1..3] + [t[0]] # rotate 1 byte left
       t = sub_bytes(t) # apply the S-box
       t[0] ^= rcon[i] # xor first byte with the round constant
       t = xor(t, res[-16, 4]) # xor with the block that came 16 bytes before this one
       res += t # add these in as the new last 4 bytes
-      
+
       3.times do # create three more blocks
         t = res[-4,4] # use the last 4 bytes of the current expansion
         t = xor(t, res[-16, 4]) # xor with the block that came 16 bytes before this one
         res += t # add these in as the new last 4 bytes
       end
     end
-    
+
     res
   end
 end

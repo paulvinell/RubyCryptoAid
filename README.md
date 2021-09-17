@@ -12,7 +12,7 @@ irb(main):002:0> "49276d206b696c6c696e6720796f757220627261696e206c696b6520612070
 => nil
 irb(main):003:0> a.value
 => "I'm killing your brain like a poisonous mushroom"
-irb(main):004:0> a.to_b64
+irb(main):004:0> a.to_b64(strict: true)
 => "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
 ```
 
@@ -52,4 +52,29 @@ end
 puts "Key: #{key.value}"
 puts
 puts "Flag: #{(raw_a ^ key).value}"
+```
+
+### Cryptopals set 1, challenge 8
+[Link to exercise](https://cryptopals.com/sets/1/challenges/8)
+
+```ruby
+# Belonging file: data/8.txt
+file_path = File.join(__dir__, 'data', '8.txt')
+file = File.open(file_path)
+file_data = file.read
+
+# Calculation
+ecb_index = -1
+
+require 'raw_string'
+
+file_data.split("\n").each_with_index do |line, index|
+  if line.hex_to_raw.aes_ecb?
+    ecb_index = index
+    break
+  end
+end
+
+# ECB at line index: 132
+puts "ECB at line index: #{ecb_index}"
 ```

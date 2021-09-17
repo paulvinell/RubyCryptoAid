@@ -1,22 +1,22 @@
-require "Lib/Numerical"
+require_relative "numerical"
 
 class StochasticVariables
   # x - list of values
   # p - array of probabilities for each value
-  
+
   def initialize x, p=nil
     @x = x
     @p = p
   end
-  
+
   def d
     return Math.sqrt(v)
   end
-  
+
   def v
     return @x.map { |i| (i.to_f - e)**2 }.reduce(:+) / @x.length
   end
-  
+
   def e
     return @x.reduce(:+).to_f / @x.length if @p.nil?
     return @x.zip(@p).map { |pair| pair[0].to_f * pair[1].to_f }.reduce(:+)
@@ -24,7 +24,7 @@ class StochasticVariables
 end
 
 class Sample
-  
+
   def self.add s1, s2, same_variation=false
     if same_variation
       return Sample.new(nil, s1.e + s2.e, Math.sqrt(((s1.n - 1)*s1.v + (s2.n - 1)*s2.v) / (s1.n + s2.n - 2)))
@@ -32,34 +32,34 @@ class Sample
       return Sample.new(nil, s1.e + s2.e, Math.sqrt(s1.v/s1.n + s2.v/s2.n))
     end
   end
-  
+
   # x - list of values
   # sd - standard deviation
-  
+
   def initialize x=nil, mean=nil, sd=nil, n=nil
     @x = x
     @mean = mean
     @sd = sd
     @n = n
   end
-  
+
   def n
     return @n unless @n.nil?
     return @x.length unless @x.nil?
     return Float::NAN
   end
-  
+
   def d
     return @sd unless @sd.nil?
     return Math.sqrt(v)
   end
-  
+
   def v
     return @sd**2 unless @sd.nil?
     return @x.map { |i| (i.to_f - e)**2 }.reduce(:+) / (@x.length - 1) unless @x.nil?
     return Float::NAN
   end
-  
+
   def e
     return @mean unless @mean.nil?
     return @x.reduce(:+).to_f / @x.length unless @x.nil?
@@ -68,12 +68,12 @@ class Sample
 end
 
 class NormalDistribution
-  
+
   # Adds two normal distributions
   def self.add nd1, nd2
     return NormalDistribution.new(nd1.e + nd2.e, Math.sqrt(nd1.v + nd2.v))
   end
-  
+
   def initialize mean=0, sd=1
     @mean = mean
     @sd = sd
@@ -82,11 +82,11 @@ class NormalDistribution
   def e
     return @mean
   end
-  
+
   def v
     return @sd**2
   end
-  
+
   # General normal cumulative distribution function
   def cdf x
     return integral(lambda { |xpos| pdf(xpos) }, -8 * @sd, x)
@@ -99,7 +99,7 @@ class NormalDistribution
   def pdf x
     return (1 / Math.sqrt(2 * Math::PI * @sd**2)) * Math::E**(-((x - @mean)**2) / (2 * @sd**2))
   end
-  
+
   # Find the x that gives some percentage of the distribution
   # p - The percentage sought
   def r_cdf p
@@ -108,17 +108,17 @@ class NormalDistribution
 end
 
 class TDistribution
-  
+
   # k - Degrees of freedom
   def initialize k=1
     @k = k.to_f
   end
-  
+
   def v
     return @k.to_f / (@k - 2) if @k > 2
     return Float::INFINITY
   end
-  
+
   def cdf x
     return 1 - cdf(-x) if x < 0
     return 1 - 0.5*regularized_incomplete_beta_function(@k/(x**2 + @k), @k / 2, 0.5)
@@ -134,7 +134,7 @@ class TDistribution
 end
 
 class ChiSquare
-  
+
   # Calculates Q
   # Two parameters:
   # a - matrix of actual values
@@ -146,7 +146,7 @@ class ChiSquare
       row_sum = a.clone.map { |y| y.reduce(:+) }
       col_sum = a.transpose.clone.map { |x| x.reduce(:+) }
       tot_sum = row_sum.clone.reduce(:+).to_f
-      
+
       res = 0.0
       row_size.times do |y|
         col_size.times do |x|
@@ -158,7 +158,7 @@ class ChiSquare
     end
     return q_list(a.flatten, e.flatten)
   end
-  
+
   # Calculates Q
   # Two parameters:
   # a - list of actual values
@@ -166,26 +166,26 @@ class ChiSquare
   def self.q_list a, e
     return a.zip(e).map { |pair| (pair[0].to_f - pair[1].to_f)**2 / pair[1].to_f }.reduce(:+)
   end
-  
+
   # k - degrees of freedom
   def initialize k
     @k = k.to_f
   end
-  
+
   def pdf x
     return (x**(@k/2 - 1) * Math::E**(-x.to_f/2))/(2**(@k/2) * gamma(@k/2))
   end
-  
+
   def cdf x
     return lower_incomplete_gamma(@k/2, x.to_f/2)/gamma(@k/2)
   end
-  
+
   # Returns the maximum point on the probability density function
   def pdf_max
     return @k - 2 if @k >= 2
     return 0
   end
-  
+
   # Find the x that gives some percentage of the distribution
   # p - The percentage sought
   def r_cdf p
@@ -194,60 +194,60 @@ class ChiSquare
 end
 
 class ExponentialDistribution
-  
+
   # λ = rate
   def initialize rate
     @rate = rate
   end
-  
+
   def e
     return 1/@rate
   end
-  
+
   def v
     return 1/(@rate**2)
   end
-  
+
   def d
     return Math.sqrt(v)
   end
-  
+
   def pdf x
     return @rate*(Math::E**(-1*@rate*x))
   end
-  
+
   def cdf x
     return integral(lambda { |xpos| pdf(xpos) }, 0, x)
   end
 end
 
 class PoissonDistribution
- 
+
   # Adds two poisson distributions
   def self.add pd1, pd2
     return PoissonDistribution.new(pd1.e + pd2.e)
   end
-  
+
   def initialize mean
     @mean = mean.to_f
   end
-  
+
   def e
     return @mean
   end
-  
+
   def v
     return e
   end
-  
+
   def d
     return Math.sqrt(v)
   end
-  
+
   def pdf k
     return (@mean**k)/factorial(k) * Math::E**(-1*@mean)
   end
-  
+
   # Probability that a value is less or equals to k
   def cdf k
     return Math::E**(-1*@mean) * (0..k).to_a.map { |i| (@mean**i)/factorial(i) }.reduce(:+)
@@ -255,20 +255,20 @@ class PoissonDistribution
 end
 
 class BinomialDistribution
-  
+
   def initialize n, p
     @n = n
     @p = p
   end
-  
+
   def e
     return @n * @p
   end
-  
+
   def v
     return @n * @p * (1 - @p)
   end
-  
+
   def pdf k
     return combination(@n, k) * @p**k * (1 - @p)**(@n - k)
   end
@@ -314,5 +314,3 @@ end
 def combination n, k
   return factorial(n)/(factorial(k)*factorial(n-k))
 end
-
-
