@@ -4,8 +4,8 @@ require "base64"
 class RawString
   attr_reader :value
 
-  def initialize(str)
-    @value = str
+  def initialize(obj)
+    @value = str(obj)
   end
 
   def append(raw_string)
@@ -13,27 +13,31 @@ class RawString
   end
 
   # XORs two raw strings. The shortest string acts as key.
-  # Input: raw string: what to XOR against
+  # Input 1, option 1: raw string: key: what to XOR against
+  # Input 1, option 2: string: key: what to XOR against
+  # Input 1, option 3: byte array: key: what to XOR against
   # Output: raw string: the XORed output
-  def ^(raw_string)
+  def ^(obj)
     bytes1 = @value.bytes
-    bytes2 = raw_string.value.bytes
+    bytes2 = bytes(obj)
 
     bytes1, bytes2 = bytes2, bytes1 if bytes1.length < bytes2.length
 
     res = Array.new(bytes1.length) { |i| bytes1[i] ^ bytes2[i % bytes2.length] }
     res = bytes_to_chars(res)
-    RawString.new(res)
+    res.to_raw
   end
   alias :xor :^
 
   # Calculates the hamming distance between two strings.
   # The distance increases by 1 for every bit where the two strings differ.
-  # Input: raw string: what to XOR against
+  # Input 1, option 1: raw string: key: what to XOR against
+  # Input 1, option 2: string: key: what to XOR against
+  # Input 1, option 3: byte array: key: what to XOR against
   # Output: raw string: the XORed output
-  def hamming_dist(raw_string)
+  def hamming_dist(obj)
     a_bits = @value.unpack("B*").join.chars
-    b_bits = raw_string.value.unpack("B*").join.chars
+    b_bits = str(obj).unpack("B*").join.chars
 
     length_dist = (a_bits.length - b_bits.length).abs
     a_bits, b_bits = b_bits, a_bits if length_dist > 0
@@ -65,15 +69,14 @@ class RawString
   # Input 1, option 3: byte array: key: the key
   # Output: raw string: bytes: the encrypted message
   def encrypt_aes_ecb(key)
-    key_str = if key.is_a?(RawString)
-                key.value
-              elsif key.is_a?(String)
-                key
-              else
-                bytes_to_chars(key)
-              end
+    key_str = str(key)
 
-    msg = pad(@value, 16)
+    msg = @value
+    if msg.length % 16 > 0
+      msg = pad(msg.bytes, 16)
+      msg = bytes_to_chars(msg)
+    end
+
     _encrypt_aes_ecb(msg, key_str)
   end
 
@@ -83,13 +86,7 @@ class RawString
   # Input: boolean: padding: should messages be padded automatically? true/false
   # Output: raw string: bytes: the decrypted message
   def decrypt_aes_ecb(key, padding: false)
-    key_str = if key.is_a?(RawString)
-                key.value
-              elsif key.is_a?(String)
-                key
-              else
-                bytes_to_chars(key)
-              end
+    key_str = str(key)
 
     data = @value
     if padding
@@ -105,10 +102,81 @@ class RawString
     guess_ecb(@value)
   end
 
+  # Input 1, option 1: raw string: key: the key
+  # Input 1, option 2: string: key: the key
+  # Input 1, option 3: byte array: key: the key
+  #
+  # Input 2, option 1: raw string: iv: the iv
+  # Input 2, option 2: string: iv: the iv
+  # Input 2, option 3: byte array: iv: the iv
+  #
+  # Output: raw string: bytes: the encrypted message
+  def encrypt_aes_cbc(key, iv)
+    key_str = str(key)
+    iv_str = str(iv)
+
+    msg = @value
+    if msg.length % 16 > 0
+      msg = pad(msg.bytes, 16)
+      msg = bytes_to_chars(msg)
+    end
+
+    _encrypt_aes_cbc(msg, key_str, iv_str)
+  end
+
+  # Input 1, option 1: raw string: key: the key
+  # Input 1, option 2: string: key: the key
+  # Input 1, option 3: byte array: key: the key
+  #
+  # Input 2, option 1: raw string: iv: the iv
+  # Input 2, option 2: string: iv: the iv
+  # Input 2, option 3: byte array: iv: the iv
+  #
+  # Input: boolean: padding: should messages be padded automatically? true/false
+  # Output: raw string: bytes: the decrypted message
+  def decrypt_aes_cbc(key, iv, padding: false)
+    key_str = str(key)
+    iv_str = str(iv)
+
+    data = @value
+    if padding
+      data = pad(data.bytes, 16)
+      data = bytes_to_chars(data)
+    end
+
+    _decrypt_aes_cbc(data, key_str, iv_str)
+  end
+
+  def length
+    @value.length
+  end
+  alias :size :length
+  alias :count :length
+
   private
 
   def bytes_to_chars(obj)
     obj.pack("c*")
+  end
+
+  def str(obj)
+    if obj.is_a?(RawString)
+      obj.value
+    elsif obj.is_a?(String)
+      obj
+    elsif obj.is_a?(Array)
+      bytes_to_chars(obj)
+    end
+  end
+
+  def bytes(obj)
+    if obj.is_a?(RawString)
+      obj.value.bytes
+    elsif obj.is_a?(String)
+      obj.bytes
+    elsif obj.is_a?(Array)
+      obj
+    end
   end
 end
 
