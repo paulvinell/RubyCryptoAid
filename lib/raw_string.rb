@@ -49,6 +49,14 @@ class RawString
     diff_dist + length_dist
   end
 
+  # Pads a raw string to an appropriate length (PKCS#7)
+  # Input: integer: blocklength: the length of one block
+  # Output: raw string: the current raw string but with appropriate padding
+  def pad(blocklength)
+    padded_bytes = _pad(@value.bytes, blocklength)
+    RawString.new(padded_bytes)
+  end
+
   # Strict => no line feeds are added
   # Output: base64 encoded string
   def to_b64(strict: false)
@@ -70,12 +78,7 @@ class RawString
   # Output: raw string: bytes: the encrypted message
   def encrypt_aes_ecb(key)
     key_str = str(key)
-
-    msg = @value
-    if msg.length % 16 > 0
-      msg = pad(msg.bytes, 16)
-      msg = bytes_to_chars(msg)
-    end
+    msg = self.pad(16).value
 
     _encrypt_aes_ecb(msg, key_str)
   end
@@ -87,19 +90,24 @@ class RawString
   # Output: raw string: bytes: the decrypted message
   def decrypt_aes_ecb(key, padding: false)
     key_str = str(key)
-
-    data = @value
-    if padding
-      data = pad(data.bytes, 16)
-      data = bytes_to_chars(data)
-    end
+    data = self.pad(16).value
 
     _decrypt_aes_ecb(data, key_str)
   end
 
+  # Input, optional: integer: duplicate_count: how many duplicate blocks needed
+  #                                            to infer that it is AES ECB.
   # Output: boolean: true if there is an indication that AES ECB encryption is used
-  def aes_ecb?
-    guess_ecb(@value)
+  def aes_ecb?(duplicate_count: 2)
+    guess_ecb(@value, duplicate_count: duplicate_count)
+  end
+
+  # Input: integer: blocksize: how big each block is
+  # Input, optional: integer: duplicate_count: how many duplicate blocks needed
+  #                                            to classify a block as duplicate.
+  # Output: integer: the index of the first instance of the duplicate block
+  def duplicate_index(blocksize, duplicate_count: 2)
+    _duplicate_index(@value, blocksize, duplicate_count: duplicate_count)
   end
 
   # Input 1, option 1: raw string: key: the key
@@ -114,12 +122,7 @@ class RawString
   def encrypt_aes_cbc(key, iv)
     key_str = str(key)
     iv_str = str(iv)
-
-    msg = @value
-    if msg.length % 16 > 0
-      msg = pad(msg.bytes, 16)
-      msg = bytes_to_chars(msg)
-    end
+    msg = self.pad(16).value
 
     _encrypt_aes_cbc(msg, key_str, iv_str)
   end
@@ -137,12 +140,7 @@ class RawString
   def decrypt_aes_cbc(key, iv, padding: false)
     key_str = str(key)
     iv_str = str(iv)
-
-    data = @value
-    if padding
-      data = pad(data.bytes, 16)
-      data = bytes_to_chars(data)
-    end
+    data = self.pad(16).value
 
     _decrypt_aes_cbc(data, key_str, iv_str)
   end
