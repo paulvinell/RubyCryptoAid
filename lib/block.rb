@@ -16,6 +16,14 @@ def _pad(bytes, blocklength)
   bytes
 end
 
+# Removes padding from a byte array (PKCS#7)
+# Output: byte array: the input but without padding
+def _unpad(bytes)
+  pad_length = bytes[-1]
+  return bytes[..-(pad_length + 1)] if bytes[-pad_length..].all? { |x| x == pad_length }
+  bytes
+end
+
 # Takes two objects, be it raw strings, strings, or byte arrays.
 # Outputs a string of the two XOR:ed together.
 # Fairly naive and does not take length into consideration.

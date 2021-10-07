@@ -57,6 +57,13 @@ class RawString
     RawString.new(padded_bytes)
   end
 
+  # Removes padding from a raw string (PKCS#7)
+  # Output: raw string: the current raw string but without the padding
+  def unpad
+    unpadded_bytes = _unpad(@value.bytes)
+    RawString.new(unpadded_bytes)
+  end
+
   # Strict => no line feeds are added
   # Output: base64 encoded string
   def to_b64(strict: false)
