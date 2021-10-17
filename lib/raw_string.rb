@@ -24,17 +24,17 @@ class RawString
     bytes1, bytes2 = bytes2, bytes1 if bytes1.length < bytes2.length
 
     res = Array.new(bytes1.length) { |i| bytes1[i] ^ bytes2[i % bytes2.length] }
-    res = bytes_to_chars(res)
+    res = str(res)
     res.to_raw
   end
   alias :xor :^
 
   # Calculates the hamming distance between two strings.
   # The distance increases by 1 for every bit where the two strings differ.
-  # Input 1, option 1: raw string: key: what to XOR against
-  # Input 1, option 2: string: key: what to XOR against
-  # Input 1, option 3: byte array: key: what to XOR against
-  # Output: raw string: the XORed output
+  # Input 1, option 1: raw string: key: what to compare against
+  # Input 1, option 2: string: key: what to compare against
+  # Input 1, option 3: byte array: key: what to compare against
+  # Output: integer: the hamming distance
   def hamming_dist(obj)
     a_bits = @value.unpack("B*").join.chars
     b_bits = str(obj).unpack("B*").join.chars
@@ -43,6 +43,26 @@ class RawString
     a_bits, b_bits = b_bits, a_bits if length_dist > 0
 
     a_bits[0, b_bits.length].zip(b_bits).reduce(0) do |sum, values|
+      sum + (values[0] == values[1] ? 0 : 1)
+    end => diff_dist
+
+    diff_dist + length_dist
+  end
+
+  # Calculates the byte distance between two strings.
+  # The distance increases by 1 for every byte where the two strings differ.
+  # Input 1, option 1: raw string: key: what to compare against
+  # Input 1, option 2: string: key: what to compare against
+  # Input 1, option 3: byte array: key: what to compare against
+  # Output: integer: the byte distance
+  def byte_dist(obj)
+    a_bytes = @value.bytes
+    b_bytes = bytes(obj)
+
+    length_dist = (a_bytes.length - b_bytes.length).abs
+    a_bytes, b_bytes = b_bytes, a_bytes if length_dist > 0
+
+    a_bytes[0, b_bytes.length].zip(b_bytes).reduce(0) do |sum, values|
       sum + (values[0] == values[1] ? 0 : 1)
     end => diff_dist
 
@@ -59,8 +79,8 @@ class RawString
 
   # Removes padding from a raw string (PKCS#7)
   # Output: raw string: the current raw string but without the padding
-  def unpad
-    unpadded_bytes = _unpad(@value.bytes)
+  def unpad(raise_on_err: false)
+    unpadded_bytes = _unpad(@value.bytes, raise_on_err: raise_on_err)
     RawString.new(unpadded_bytes)
   end
 
@@ -160,17 +180,13 @@ class RawString
 
   private
 
-  def bytes_to_chars(obj)
-    obj.pack("c*")
-  end
-
   def str(obj)
     if obj.is_a?(RawString)
       obj.value
     elsif obj.is_a?(String)
       obj
     elsif obj.is_a?(Array)
-      bytes_to_chars(obj)
+      obj.pack("c*")
     end
   end
 

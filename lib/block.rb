@@ -17,10 +17,15 @@ def _pad(bytes, blocklength)
 end
 
 # Removes padding from a byte array (PKCS#7)
+# Input: optional: raise_on_err: raise an error when padding is incorrect
 # Output: byte array: the input but without padding
-def _unpad(bytes)
+def _unpad(bytes, raise_on_err: false)
   pad_length = bytes[-1]
+
   return bytes[..-(pad_length + 1)] if bytes[-pad_length..].all? { |x| x == pad_length }
+
+  raise "Bad padding: #{bytes[-pad_length..].join(", ")}" if raise_on_err
+
   bytes
 end
 
